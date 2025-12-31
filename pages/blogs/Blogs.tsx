@@ -3,11 +3,12 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { 
   Edit2, Plus, Calendar, Trash2, 
   FileText, Image as ImageIcon, 
-  X, Upload, ChevronLeft, Link as LinkIcon 
+  X, Upload, ChevronLeft, Link as LinkIcon, 
+  ChevronRight
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import Swal from 'sweetalert2';
-import { Blog, Category } from '@/types';
+import { Blog, Category, Pagination } from '@/types';
 import { apiRequest } from '@/services/api';
 import { ENDPOINTS } from '@/constants';
 import { Button } from '@/components/ui/Button';
@@ -33,14 +34,21 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
   
   const imageInputRef = useRef<HTMLInputElement>(null);
   const transcriptInputRef = useRef<HTMLInputElement>(null);
-
-  const fetchBlogs = useCallback(async () => {
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
+  
+  const fetchBlogs = useCallback(async (page: number) => {
     setLoading(true);
-    try {
-      const res = await apiRequest(ENDPOINTS.BLOG.LIST, 'GET', null, token);
+    try {const url = `${ENDPOINTS.BLOG.LIST}?page=${page}`;
+      const res = await apiRequest(url, 'GET', null, token);
       if (res.status && res.data && Array.isArray(res.data.blogs)) {
         const active = res.data.blogs.filter((b: any) => b.status === 1);
         setBlogs(active);
+        
+        if (res.data.pagination) {
+          setPagination(res.data.pagination);
+        }
       }
     } catch (error) {
       toast.error("Failed to load blogs");
@@ -63,11 +71,17 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
 
   useEffect(() => {
     if (view === 'list') {
-      fetchBlogs();
+      fetchBlogs(currentPage);
     } else {
       fetchCategories();
     }
-  }, [view, fetchBlogs, fetchCategories]);
+  }, [view, fetchBlogs,currentPage, fetchCategories]);
+
+    const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && pagination && newPage <= pagination.total_pages) {
+      setCurrentPage(newPage);
+    }
+  };
 
   const resetForm = () => {
     setTitle('');
@@ -380,7 +394,61 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
           </div>
         ))}
       </div>
+{/* Pagination Controls */}
+        {pagination && pagination.total_pages > 1 && (
+          <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50/30 px-6 py-4">
+            <div className="flex flex-1 justify-between sm:hidden">
+              <Button 
+                variant="secondary" 
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage <= 1}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="secondary" 
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage >= pagination.total_pages}
+              >
+                Next
+              </Button>
+            </div>
+            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+              <div>
+                {/* <p className="text-sm text-gray-500 font-medium">
+                  Showing <span className="text-gray-900">{((currentPage - 1) * pagination.per_page) + 1}</span> to{' '}
+                  <span className="text-gray-900">{Math.min(currentPage * pagination.per_page, pagination.total)}</span> of{' '}
+                  <span className="text-gray-900">{pagination.total}</span> entries
+                </p> */}
+              </div>
+              <div>
+                <nav className="isolate inline-flex -space-x-px rounded-xl shadow-sm bg-white border border-gray-200" aria-label="Pagination">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage <= 1}
+                    className="relative inline-flex items-center rounded-l-xl px-3 py-2 text-gray-500 hover:bg-gray-50 focus:z-20 focus:outline-none disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <span className="sr-only">Previous</span>
+                    <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+                  </button>
+                  
+                  <div className="flex items-center px-4 text-sm font-bold text-indigo-600 border-x border-gray-100 h-10">
+                    Page {currentPage} of {pagination.total_pages}
+                  </div>
 
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage >= pagination.total_pages}
+                    className="relative inline-flex items-center rounded-r-xl px-3 py-2 text-gray-500 hover:bg-gray-50 focus:z-20 focus:outline-none disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <span className="sr-only">Next</span>
+                    <ChevronRight className="h-5 w-5" aria-hidden="true" />
+                  </button>
+                </nav>
+              </div>
+            </div>
+          </div>
+        )}
       {!loading && blogs.length === 0 && (
         <div className="bg-indigo-50 rounded-3xl p-20 text-center border-2 border-dashed border-indigo-200">
           <div className="mx-auto w-20 h-20 bg-white rounded-2xl shadow-md flex items-center justify-center mb-6">
