@@ -3,14 +3,14 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { 
   Edit2, Plus, Calendar, Trash2, 
   FileText, Image as ImageIcon, 
-  X, Upload, ChevronLeft, Link as LinkIcon, 
-  ChevronRight
+  X, Upload, ChevronLeft,
+  ChevronRight, Filter
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import Swal from 'sweetalert2';
 import { Blog, Category, Pagination } from '@/types';
-import { apiRequest } from '@/services/api';
 import { ENDPOINTS } from '@/constants';
+import { apiRequest } from '@/services/api';
 import { Button } from '@/components/ui/Button';
 
 interface BlogsProps {
@@ -23,6 +23,9 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'list' | 'create' | 'edit'>('list');
   const [editingId, setEditingId] = useState<number | null>(null);
+
+  // Filter State
+  const [filterCategoryId, setFilterCategoryId] = useState<string>('');
 
   // Form State
   const [title, setTitle] = useState('');
@@ -38,9 +41,15 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   
-  const fetchBlogs = useCallback(async (page: number) => {
+  // Updated fetchBlogs to include category_id
+  const fetchBlogs = useCallback(async (page: number, catId?: string) => {
     setLoading(true);
-    try {const url = `${ENDPOINTS.BLOG.LIST}?page=${page}`;
+    try {
+      let url = `${ENDPOINTS.BLOG.LIST}?page=${page}`;
+      if (catId) {
+        url += `&category_id=${catId}`;
+      }
+      
       const res = await apiRequest(url, 'GET', null, token);
       if (res.status && res.data && Array.isArray(res.data.blogs)) {
         const active = res.data.blogs.filter((b: any) => b.status === 1);
@@ -69,15 +78,23 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
     }
   }, [token]);
 
+  // Updated useEffect to trigger on filter change
   useEffect(() => {
     if (view === 'list') {
-      fetchBlogs(currentPage);
+      fetchBlogs(currentPage, filterCategoryId);
+      fetchCategories(); // Fetch categories for the filter dropdown
     } else {
       fetchCategories();
     }
-  }, [view, fetchBlogs,currentPage, fetchCategories]);
+  }, [view, fetchBlogs, currentPage, fetchCategories, filterCategoryId]);
 
-    const handlePageChange = (newPage: number) => {
+  const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newCatId = e.target.value;
+    setFilterCategoryId(newCatId);
+    setCurrentPage(1); // Reset to page 1 when filter changes
+  };
+
+  const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && pagination && newPage <= pagination.total_pages) {
       setCurrentPage(newPage);
     }
@@ -125,8 +142,6 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
         setDescription(b.description);
         setCategoryGuid(b.category_guid || '');
         setImagePreview(b.cover && b.cover.length > 0 ? b.cover[0].original_url : null);
-        // if (b.cover && b.cover.length > 0) {
-        // }
         setView('edit');
       }
     } catch (err) {
@@ -152,7 +167,7 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
           const res = await apiRequest(ENDPOINTS.BLOG.Delete(id), "POST", null, token);
           if (res.status) {
             Swal.fire("Deleted!", "Blog post has been removed.", "success");
-            fetchBlogs();
+            fetchBlogs(currentPage, filterCategoryId);
           }
         } catch (err) {
           toast.error("Delete failed");
@@ -334,9 +349,34 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
           <h2 className="text-4xl font-extrabold text-gray-900 tracking-tight">News Editorial</h2>
           <p className="text-lg text-gray-500 mt-2 font-medium">Create and manage content for your digital presence.</p>
         </div>
-        <Button onClick={() => { resetForm(); setView('create'); }} className="px-6 py-3 rounded-xl shadow-lg hover:translate-y-[-2px] transition-all">
-          <Plus className="w-5 h-5 mr-2" /> New Publication
-        </Button>
+        
+        {/* Actions Area: Filter + New Publication */}
+        <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
+          <div className="relative group w-full md:w-64">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Filter size={18} className="text-gray-400 group-focus-within:text-[#d84602] transition-colors" />
+            </div>
+            <select
+              value={filterCategoryId}
+              onChange={handleFilterChange}
+              className="block w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-700 font-medium focus:ring-2 focus:ring-[#d84602] focus:border-[#d84602] transition-all outline-none cursor-pointer appearance-none shadow-sm"
+            >
+              <option value="">All Categories</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+              <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </div>
+          </div>
+          
+          <Button onClick={() => { resetForm(); setView('create'); }} className="px-6 py-3 rounded-xl shadow-lg hover:translate-y-[-2px] transition-all w-full md:w-auto">
+            <Plus className="w-5 h-5 mr-2" /> New Publication
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -354,7 +394,7 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
               />
               <div className="absolute top-4 left-4">
                 <span className="px-3 py-1 bg-white/90 backdrop-blur text-indigo-700 text-[10px] font-bold uppercase tracking-wider rounded-full shadow-sm">
-                  {b.category.name || 'Uncategorized'}
+                  {b.category?.name || 'Uncategorized'}
                 </span>
               </div>
             </div>
@@ -383,7 +423,7 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
                     <Edit2 size={18} />
                   </button>
                   <button 
-                    onClick={() => handleDeleteClick(b.id)}
+                    onClick={() => handleDeleteClick(b.id.toString())}
                     className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-all"
                   >
                     <Trash2 size={18} />
@@ -394,69 +434,73 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
           </div>
         ))}
       </div>
-{/* Pagination Controls */}
-        {pagination && pagination.total_pages > 1 && (
-          <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50/30 px-6 py-4">
-            <div className="flex flex-1 justify-between sm:hidden">
-              <Button 
-                variant="secondary" 
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage <= 1}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="secondary" 
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage >= pagination.total_pages}
-              >
-                Next
-              </Button>
-            </div>
-            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-              <div>
-                {/* <p className="text-sm text-gray-500 font-medium">
-                  Showing <span className="text-gray-900">{((currentPage - 1) * pagination.per_page) + 1}</span> to{' '}
-                  <span className="text-gray-900">{Math.min(currentPage * pagination.per_page, pagination.total)}</span> of{' '}
-                  <span className="text-gray-900">{pagination.total}</span> entries
-                </p> */}
-              </div>
-              <div>
-                <nav className="isolate inline-flex -space-x-px rounded-xl shadow-sm bg-white border border-gray-200" aria-label="Pagination">
-                  <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage <= 1}
-                    className="relative inline-flex items-center rounded-l-xl px-3 py-2 text-gray-500 hover:bg-gray-50 focus:z-20 focus:outline-none disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <span className="sr-only">Previous</span>
-                    <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-                  </button>
-                  
-                  <div className="flex items-center px-4 text-sm font-bold text-indigo-600 border-x border-gray-100 h-10">
-                    Page {currentPage} of {pagination.total_pages}
-                  </div>
 
-                  <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage >= pagination.total_pages}
-                    className="relative inline-flex items-center rounded-r-xl px-3 py-2 text-gray-500 hover:bg-gray-50 focus:z-20 focus:outline-none disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <span className="sr-only">Next</span>
-                    <ChevronRight className="h-5 w-5" aria-hidden="true" />
-                  </button>
-                </nav>
-              </div>
+      {/* Pagination Controls */}
+      {pagination && pagination.total_pages > 1 && (
+        <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50/30 px-6 py-4">
+          <div className="flex flex-1 justify-between sm:hidden">
+            <Button 
+              variant="secondary" 
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage <= 1}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="secondary" 
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage >= pagination.total_pages}
+            >
+              Next
+            </Button>
+          </div>
+          <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+            <div>
+              {/* Optional: Results counter could go here */}
+            </div>
+            <div>
+              <nav className="isolate inline-flex -space-x-px rounded-xl shadow-sm bg-white border border-gray-200" aria-label="Pagination">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage <= 1}
+                  className="relative inline-flex items-center rounded-l-xl px-3 py-2 text-gray-500 hover:bg-gray-50 focus:z-20 focus:outline-none disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <span className="sr-only">Previous</span>
+                  <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+                </button>
+                
+                <div className="flex items-center px-4 text-sm font-bold text-indigo-600 border-x border-gray-100 h-10">
+                  Page {currentPage} of {pagination.total_pages}
+                </div>
+
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage >= pagination.total_pages}
+                  className="relative inline-flex items-center rounded-r-xl px-3 py-2 text-gray-500 hover:bg-gray-50 focus:z-20 focus:outline-none disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <span className="sr-only">Next</span>
+                  <ChevronRight className="h-5 w-5" aria-hidden="true" />
+                </button>
+              </nav>
             </div>
           </div>
-        )}
+        </div>
+      )}
+
       {!loading && blogs.length === 0 && (
         <div className="bg-indigo-50 rounded-3xl p-20 text-center border-2 border-dashed border-indigo-200">
           <div className="mx-auto w-20 h-20 bg-white rounded-2xl shadow-md flex items-center justify-center mb-6">
             <FileText className="text-indigo-600 h-10 w-10" />
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-2">No publications yet</h3>
-          <p className="text-gray-500 mb-8 max-w-xs mx-auto">Your editorial is empty. Start creating meaningful content for your audience today.</p>
-          <Button onClick={() => setView('create')} className="px-8">Get Started</Button>
+          <h3 className="text-2xl font-bold text-gray-900 mb-2">No publications found</h3>
+          <p className="text-gray-500 mb-8 max-w-xs mx-auto">
+            {filterCategoryId ? "Try selecting a different category or clearing the filter." : "Your editorial is empty. Start creating meaningful content today."}
+          </p>
+          {filterCategoryId ? (
+            <Button onClick={() => setFilterCategoryId('')} variant="secondary" className="px-8">Clear Filter</Button>
+          ) : (
+            <Button onClick={() => setView('create')} className="px-8">Get Started</Button>
+          )}
         </div>
       )}
     </div>
