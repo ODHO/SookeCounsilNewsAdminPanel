@@ -13,6 +13,7 @@ const getHeaders = (token?: string, isMultipart: boolean = false) => {
   return headers;
 };
 
+
 export const apiRequest = async (
   endpoint: string,
   method: 'GET' | 'POST' = 'GET',
