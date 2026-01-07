@@ -105,7 +105,7 @@ export const Categories: React.FC<CategoriesProps> = ({ token }) => {
         setName(c.name);
         setDescription(c.description);
         // Using optional chaining and fallback for image preview
-        setImagePreview(c.cover?.[0]?.original_url || c.image_url || null);
+        setImagePreview(c.media?.[0]?.original_url || c.image_url || null);
         setView('edit');
       }
     } catch (err) {

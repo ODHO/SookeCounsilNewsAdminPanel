@@ -41,6 +41,7 @@ export interface Category {
   order_by: any;
   title: any;
   cover: any;
+  media: any;
   id: number;
   guid: string;
   name: string;
