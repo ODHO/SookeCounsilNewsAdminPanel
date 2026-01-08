@@ -4,7 +4,8 @@ import {
   Edit2, Plus, Calendar, Trash2, 
   FileText, Image as ImageIcon, 
   X, Upload, ChevronLeft,
-  ChevronRight, Filter
+  ChevronRight, Filter,
+  Search
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import Swal from 'sweetalert2';
@@ -12,7 +13,6 @@ import { Blog, Category, Pagination } from '@/types';
 import { ENDPOINTS } from '@/constants';
 import { apiRequest } from '@/services/api';
 import { Button } from '@/components/ui/Button';
-
 
 interface BlogsProps {
   token: string;
@@ -24,6 +24,9 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'list' | 'create' | 'edit'>('list');
   const [editingId, setEditingId] = useState<number | null>(null);
+
+  // Search State
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Tab / Filter State
   const [activeCategoryGuid, setActiveCategoryGuid] = useState<string>('');
@@ -43,22 +46,37 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   
-  const fetchBlogs = useCallback(async (page: number, catGuid?: string) => {
+  /**
+   * Universal fetch function that handles both List and Search endpoints
+   */
+  const fetchBlogs = useCallback(async (page: number, catGuid?: string, query?: string) => {
     setLoading(true);
     try {
-      let url = `${ENDPOINTS.BLOG.LIST}?page=${page}`;
-      if (catGuid) {
-        url += `&category_id=${catGuid}`;
+      let url = '';
+      
+      // If search query is present, use the search endpoint as requested
+      if (query && query.trim() !== '') {
+        url = `${ENDPOINTS.BLOG.SEARCH}?search=${encodeURIComponent(query)}&page=${page}`;
+      } else {
+        // Standard list fetch
+        url = `${ENDPOINTS.BLOG.LIST}?page=${page}`;
+        if (catGuid) {
+          url += `&category_id=${catGuid}`;
+        }
       }
       
       const res = await apiRequest(url, 'GET', null, token);
       if (res.status && res.data && Array.isArray(res.data.blogs)) {
+        // Only show active blogs
         const active = res.data.blogs.filter((b: any) => b.status === 1);
         setBlogs(active);
         
         if (res.data.pagination) {
           setPagination(res.data.pagination);
         }
+      } else {
+        setBlogs([]);
+        setPagination(null);
       }
     } catch (error) {
       toast.error("Failed to load blogs");
@@ -69,7 +87,8 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
 
   const fetchCategories = useCallback(async () => {
     try {
-      const res = await apiRequest(ENDPOINTS.CATEGORY.LIST, 'GET', null, token);
+      // Assuming ENDPOINTS.CATEGORY.LIST exists in your actual setup
+      const res = await apiRequest('/category/admin', 'GET', null, token);
       if (res.status && res.data && Array.isArray(res.data.categories)) {
         const active = res.data.categories.filter((c: any) => c.status === 1);
         setCategories(active);
@@ -89,10 +108,18 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
   }, [fetchCategories]);
 
   useEffect(() => {
-    if (view === 'list' && activeCategoryGuid) {
-      fetchBlogs(currentPage, activeCategoryGuid);
+    if (view === 'list' && (activeCategoryGuid || searchTerm)) {
+      fetchBlogs(currentPage, activeCategoryGuid, searchTerm);
     }
-  }, [view, fetchBlogs, currentPage, activeCategoryGuid]);
+  }, [view, fetchBlogs, currentPage, activeCategoryGuid, searchTerm]);
+
+  // Handle Enter key on Search Input
+  const handleSearchKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      setCurrentPage(1);
+      // Triggering search via the searchTerm state update in useEffect
+    }
+  };
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && pagination && newPage <= pagination.total_pages) {
@@ -167,7 +194,7 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
           const res = await apiRequest(ENDPOINTS.BLOG.Delete(id), "POST", null, token);
           if (res.status) {
             Swal.fire("Deleted!", "Blog post has been removed.", "success");
-            fetchBlogs(currentPage, activeCategoryGuid);
+            fetchBlogs(currentPage, activeCategoryGuid, searchTerm);
           }
         } catch (err) {
           toast.error("Delete failed");
@@ -228,7 +255,7 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
                 {view === 'create' ? 'Create New Meeting' : 'Edit Meeting'}
               </h2>
             </div>
-            <Button variant="secondary" onClick={() => setView('list')}>Discard Changes</Button>
+            <Button variant="secondary" onClick={() => setView('list')} className="px-4 py-2 rounded-lg">Discard Changes</Button>
           </div>
           
           <form onSubmit={handleSubmit} className="p-8 space-y-8">
@@ -346,19 +373,57 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
           <h2 className="text-4xl font-extrabold text-gray-900 tracking-tight">Meetings</h2>
           <p className="text-lg text-gray-500 mt-2 font-medium">Create and manage meetings.</p>
         </div>
-        
+        <div className="flex md:flex-row flex-col gap-2">
+          <div className="relative group w-full sm:w-80">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#d84602] transition-colors" size={20} />
+            <input 
+              type="text" 
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              onKeyPress={handleSearchKeyPress}
+              placeholder="Search editorial archives..."
+              className="w-full bg-white pl-12 pr-4 py-4 rounded-2xl border-2 border-gray-100 focus:border-[#d84602] transition-all outline-none font-semibold text-gray-800 shadow-sm"
+            />
+            {searchTerm && (
+              <button 
+                onClick={() => setSearchTerm('')}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
         <Button onClick={() => { resetForm(); setView('create'); }} className="px-6 py-3 rounded-xl shadow-lg hover:translate-y-[-2px] transition-all w-full md:w-auto">
           <Plus className="w-5 h-5 mr-2" /> New Publication
         </Button>
+        </div>
       </div>
 
-      {/* Category Tabs */}
+      {/* Category Tabs - Hide categories if we are actively searching to focus on search results */}
       <div className="border-b border-gray-200 overflow-x-auto no-scrollbar flex items-center space-x-2 py-2">
+        {/* <button
+          onClick={() => {
+            setActiveCategoryGuid('');
+            setSearchTerm(''); // Clear search when picking global view
+            setCurrentPage(1);
+          }}
+          className={`px-6 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all duration-200 ${
+            activeCategoryGuid === '' && !searchTerm
+              ? 'bg-[#d84602] text-white shadow-md' 
+              : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
+          }`}
+        >
+          All Meetings
+        </button> */}
         {categories.map((c) => (
           <button
             key={c.guid}
             onClick={() => {
               setActiveCategoryGuid(c.id);
+              setSearchTerm(''); // Clear search when picking a category
               setCurrentPage(1);
             }}
             className={`px-6 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all duration-200 ${
@@ -401,12 +466,14 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
                 {b.title}
               </h3>
               <p className="text-sm text-gray-500 line-clamp-3 mb-6 flex-1 leading-relaxed">
-                {b.description.replace(/<[^>]*>?/gm, '')}
+                {b.description?.replace(/<[^>]*>?/gm, '') || "No description available."}
               </p>
               
               <div className="pt-4 border-t border-gray-50 flex items-center justify-between">
                 <div className="flex -space-x-2">
-                  <div className="h-7 w-7 rounded-full border-2 border-white bg-indigo-500 text-[10px] flex items-center justify-center text-white font-bold">JD</div>
+                  <div className="h-7 w-7 rounded-full border-2 border-white bg-indigo-500 text-[10px] flex items-center justify-center text-white font-bold">
+                    {b.user?.name ? b.user.name.substring(0, 2).toUpperCase() : 'JD'}
+                  </div>
                 </div>
                 <div className="flex space-x-1">
                   <button 
@@ -430,12 +497,13 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
 
       {/* Pagination Controls */}
       {pagination && pagination.total_pages > 1 && (
-        <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50/30 px-6 py-4">
+        <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50/30 px-6 py-4 rounded-b-2xl">
           <div className="flex flex-1 justify-between sm:hidden">
             <Button 
               variant="secondary" 
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage <= 1}
+              className="px-4 py-2 rounded-lg"
             >
               Previous
             </Button>
@@ -443,12 +511,15 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
               variant="secondary" 
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage >= pagination.total_pages}
+              className="px-4 py-2 rounded-lg"
             >
               Next
             </Button>
           </div>
           <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-            <div></div>
+            <div className="text-sm text-gray-500 font-medium">
+              Showing <span className="font-bold">{(currentPage - 1) * pagination.page_size + 1}</span> to <span className="font-bold">{Math.min(currentPage * pagination.page_size, pagination.total)}</span> of <span className="font-bold">{pagination.total}</span> results
+            </div>
             <div>
               <nav className="isolate inline-flex -space-x-px rounded-xl shadow-sm bg-white border border-gray-200" aria-label="Pagination">
                 <button
@@ -460,7 +531,7 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
                   <ChevronLeft className="h-5 w-5" aria-hidden="true" />
                 </button>
                 
-                <div className="flex items-center px-4 text-sm font-bold text-indigo-600 border-x border-gray-100 h-10">
+                <div className="flex items-center px-4 text-sm font-bold text-[#d84602] border-x border-gray-100 h-10">
                   Page {currentPage} of {pagination.total_pages}
                 </div>
 
@@ -479,15 +550,24 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
       )}
 
       {!loading && blogs.length === 0 && (
-        <div className="bg-indigo-50 rounded-3xl p-20 text-center border-2 border-dashed border-indigo-200">
-          <div className="mx-auto w-20 h-20 bg-white rounded-2xl shadow-md flex items-center justify-center mb-6">
-            <FileText className="text-indigo-600 h-10 w-10" />
+        <div className="bg-white rounded-3xl p-20 text-center border-2 border-dashed border-gray-200 shadow-sm">
+          <div className="mx-auto w-20 h-20 bg-gray-50 rounded-2xl shadow-sm flex items-center justify-center mb-6">
+            <FileText className="text-gray-400 h-10 w-10" />
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-2">No publications found</h3>
-          <p className="text-gray-500 mb-8 max-w-xs mx-auto">
-            Your editorial is empty. Start creating meaningful content today.
+          <h3 className="text-2xl font-bold text-gray-900 mb-2">
+            {searchTerm ? `No results for "${searchTerm}"` : 'No publications found'}
+          </h3>
+          <p className="text-gray-500 mb-8 max-w-xs mx-auto font-medium">
+            {searchTerm 
+              ? "Try adjusting your search terms or filters to find what you're looking for." 
+              : "Your editorial is empty. Start creating meaningful content today."}
           </p>
-          <Button onClick={() => setView('create')} className="px-8">Get Started</Button>
+          <div className="flex justify-center gap-3">
+             {searchTerm && (
+                <Button variant="secondary" onClick={() => setSearchTerm('')} className="px-8 py-3 rounded-xl">Clear Search</Button>
+             )}
+             <Button onClick={() => setView('create')} className="px-8 py-3 rounded-xl">Get Started</Button>
+          </div>
         </div>
       )}
     </div>

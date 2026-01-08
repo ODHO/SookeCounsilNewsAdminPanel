@@ -27,6 +27,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
     { name: 'Categories', path: '/categories', icon: Tags },
     // { name: 'Products', path: '/products', icon: ShoppingBag },
     { name: 'Meetings', path: '/news', icon: FileText },
+    { name: 'Transcriptions', path: '/transcriptions', icon: FileText },
     // { name: 'Testimonials', path: '/testimonials', icon: MessageSquareQuote },
     // { name: 'Orders', path: '/orders', icon: ListOrdered },
     { name: 'About Us', path: '/about-content', icon: HandPlatter },

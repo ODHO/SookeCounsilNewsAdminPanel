@@ -27,6 +27,7 @@ export const ENDPOINTS = {
   BLOG: {
     LIST: "/blog/admin",
     CREATE: "/blog/create",
+    SEARCH: "/blog/search",
     Delete: (id: string) => `/blog/update-status/${id}`,
     GET_BY_ID: (id: string | number) => `/blog/getById/${id}`,
     UPDATE: (id: string | number) => `/blog/update/${id}`,
