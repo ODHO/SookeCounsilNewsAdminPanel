@@ -24,7 +24,6 @@ import { Category, Pagination } from '@/types';
 import { apiRequest } from '@/services/api';
 import { ENDPOINTS } from '@/constants';
 import { Button } from '@/components/ui/Button';
-
 interface CategoriesProps {
   token: string;
 }
@@ -63,7 +62,9 @@ export const Categories: React.FC<CategoriesProps> = ({ token }) => {
           .filter((cat: any) => cat.status === 1)
           .sort((a, b) => (a.order_by || 0) - (b.order_by || 0));
         setCategories(active);
-        
+        console.log('====================================');
+        console.log(active);
+        console.log('====================================');
         if (res.data.pagination) {
             setPagination(res.data.pagination);
         }
@@ -74,7 +75,6 @@ export const Categories: React.FC<CategoriesProps> = ({ token }) => {
       setLoading(false);
     }
   }, [token]);
-
   const resetForm = () => {
     setName('');
     setDescription('');
@@ -95,6 +95,38 @@ export const Categories: React.FC<CategoriesProps> = ({ token }) => {
     }
   };
 
+  const handleToggleActive = async (guid: string, currentStatus: number) => {
+    // Determine new status (toggle 0 and 1)
+    const newStatus = currentStatus === 1 ? 0 : 1;
+    
+    // Optimistic UI update
+    setCategories(prev => 
+      prev.map(cat => cat.guid === guid ? { ...cat, active: newStatus } : cat)
+    );
+
+    try {
+      const res = await apiRequest(
+        ENDPOINTS.CATEGORY.UPDATE_ACTIVE(guid),
+        "POST",
+            null,
+            token
+      );
+
+      if (res.status) {
+        toast.success(`Category set to ${newStatus === 1 ? 'Active' : 'Inactive'}`);
+        fetchCategories();
+      } else {
+        throw new Error(res.message);
+      }
+    } catch (err: any) {
+      // Revert on error
+      setCategories(prev => 
+        prev.map(cat => cat.guid === guid ? { ...cat, active: currentStatus } : cat)
+      );
+      toast.error(err.message || "Failed to update status");
+    }
+  };
+
   const handleEditClick = async (guid: string) => {
     setLoading(true);
     try {
@@ -104,8 +136,7 @@ export const Categories: React.FC<CategoriesProps> = ({ token }) => {
         setEditingGuid(c.guid);
         setName(c.name);
         setDescription(c.description);
-        // Using optional chaining and fallback for image preview
-        setImagePreview(c.media?.[0]?.original_url || c.image_url || null);
+        setImagePreview(c.media?.[0]?.original_url || c.image_url || c.cover?.[0]?.original_url || null);
         setView('edit');
       }
     } catch (err) {
@@ -135,7 +166,7 @@ export const Categories: React.FC<CategoriesProps> = ({ token }) => {
             token
           );
           if (res.status) {
-            Swal.fire("Deleted!", "Category has been deleted.", "success");
+            Swal.fire("Deleted!", "Category has been deactivated.", "success");
             fetchCategories();
           }
         } catch (err) {
@@ -196,15 +227,12 @@ export const Categories: React.FC<CategoriesProps> = ({ token }) => {
         
         const newOrder = arrayMove(items, oldIndex, newIndex);
         
-        // Recalculate order_by based on new position
         const updatedList = newOrder.map((item : any, index) => ({
           ...item,
           order_by: (currentPage - 1) * (pagination?.per_page || 10) + (index + 1)
         }));
 
-        // Sync with server in background
         updateOrderOnServer(updatedList);
-        
         return updatedList;
       });
     }
@@ -212,7 +240,6 @@ export const Categories: React.FC<CategoriesProps> = ({ token }) => {
 
   const updateOrderOnServer = async (sortedList: Category[]) => {
     const promises = sortedList.map((s) => {
-      // Body as requested: name, description, image, order_by
       const body = {
         name: s.name,
         description: s.description,
@@ -329,7 +356,7 @@ export const Categories: React.FC<CategoriesProps> = ({ token }) => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
         <div>
           <h2 className="text-4xl font-black text-gray-900 tracking-tight">Organization & Flow</h2>
-          <p className="text-gray-500 mt-2 font-medium">Drag and drop rows to customize the category appearance order.</p>
+          <p className="text-gray-500 mt-2 font-medium">Manage categories and their display status below.</p>
         </div>
         <Button onClick={() => { resetForm(); setView('create'); }} className="px-6 py-3 rounded-xl shadow-xl hover:translate-y-[-2px] transition-all">
           <Plus className="w-5 h-5 mr-2" /> Add New Category
@@ -349,7 +376,7 @@ export const Categories: React.FC<CategoriesProps> = ({ token }) => {
                 <th className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Sort</th>
                 <th className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Cover</th>
                 <th className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Identity</th>
-                <th className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Metrics</th>
+                <th className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Status Toggle</th>
                 <th className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Rank</th>
                 <th className="px-6 py-5 text-right text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Operations</th>
               </tr>
@@ -364,7 +391,8 @@ export const Categories: React.FC<CategoriesProps> = ({ token }) => {
                       key={category.guid} 
                       category={category} 
                       onEdit={handleEditClick} 
-                      onDelete={handleDeleteClick} 
+                      onDelete={handleDeleteClick}
+                      onToggleActive={handleToggleActive}
                     />
                   ))}
                 </SortableContext>
@@ -383,7 +411,7 @@ export const Categories: React.FC<CategoriesProps> = ({ token }) => {
                 </tr>
               )}
               
-              {loading && (
+              {loading && categories.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-6 py-32">
                     <div className="flex flex-col items-center justify-center space-y-4">

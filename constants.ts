@@ -16,6 +16,7 @@ export const ENDPOINTS = {
     Delete: (guid: string) => `/category/update-status/${guid}`,
     GET_BY_GUID: (guid: string) => `/category/getByGuid/${guid}`,
     UPDATE: (guid: string) => `/category/update/${guid}`,
+    UPDATE_ACTIVE: (guid: string) => `/category/update-active/${guid}`,
   },
   // PRODUCT: {
   //   LIST: "/product/admin", // Returns "categories" key
