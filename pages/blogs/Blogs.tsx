@@ -306,10 +306,10 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
                       className="block w-full pl-11 pr-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none font-medium appearance-none"
                     />
                   </div>
-                    <div className="mt-2 flex items-center justify-between text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
-                      <span>Format: YYYY-MM-DD</span>
+                    {/* <div className="mt-2 flex items-center justify-between text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
+                      <span>Format: DD-MM-YYYY</span>
                       <span className="text-indigo-500">Scheduled for Publishing</span>
-                    </div>
+                    </div> */}
                 </div>
 
                 <div>
