@@ -74,6 +74,7 @@ export interface Blog {
   image?: Media[];
   transcript?: Media[];
   category_guid?: number;
+  publish_date?: string;
   status: number;
   user_id: number;
   formatted_date: string;

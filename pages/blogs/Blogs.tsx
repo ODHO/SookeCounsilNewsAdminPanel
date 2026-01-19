@@ -5,7 +5,8 @@ import {
   FileText, Image as ImageIcon, 
   X, Upload, ChevronLeft,
   ChevronRight, Filter,
-  Search
+  Search,
+  CalendarIcon
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import Swal from 'sweetalert2';
@@ -35,6 +36,7 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [categoryGuid, setCategoryGuid] = useState('');
+  const [publishDate, setPublishDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [image, setImage] = useState<File | null>(null);
   const [transcript, setTranscript] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -87,15 +89,15 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
 
   const fetchCategories = useCallback(async () => {
     try {
-      // Assuming ENDPOINTS.CATEGORY.LIST exists in your actual setup
-      const res = await apiRequest('/category/admin', 'GET', null, token);
+      const res = await apiRequest(ENDPOINTS.CATEGORY.LIST, 'GET', null, token);
       if (res.status && res.data && Array.isArray(res.data.categories)) {
         const active = res.data.categories.filter((c: any) => c.status === 1);
         setCategories(active);
         
         // Load first category by default if none selected
         if (active.length > 0 && !activeCategoryGuid) {
-          setActiveCategoryGuid(active[0].id);
+          // In actual code, usually we'd select first or stay empty
+          // setActiveCategoryGuid(active[0].id);
         }
       }
     } catch (error) {
@@ -108,7 +110,7 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
   }, [fetchCategories]);
 
   useEffect(() => {
-    if (view === 'list' && (activeCategoryGuid || searchTerm)) {
+    if (view === 'list') {
       fetchBlogs(currentPage, activeCategoryGuid, searchTerm);
     }
   }, [view, fetchBlogs, currentPage, activeCategoryGuid, searchTerm]);
@@ -117,7 +119,6 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
   const handleSearchKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       setCurrentPage(1);
-      // Triggering search via the searchTerm state update in useEffect
     }
   };
 
@@ -131,6 +132,7 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
     setTitle('');
     setDescription('');
     setCategoryGuid('');
+    setPublishDate(new Date().toISOString().split('T')[0]);
     setImage(null);
     setTranscript(null);
     setImagePreview(null);
@@ -168,6 +170,7 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
         setTitle(b.title);
         setDescription(b.description);
         setCategoryGuid(b.category_guid || '');
+        setPublishDate(b.publish_date || new Date().toISOString().split('T')[0]);
         setImagePreview(b.cover && b.cover.length > 0 ? b.cover[0].original_url : null);
         setView('edit');
       }
@@ -217,6 +220,7 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
     formData.append('title', title);
     formData.append('description', description);
     formData.append('category_guid', categoryGuid);
+    formData.append('publish_date', publishDate);
     
     if (image) formData.append('image', image);
     if (transcript) formData.append('transcript', transcript);
@@ -252,7 +256,7 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
                 <ChevronLeft size={20} />
               </button>
               <h2 className="text-2xl font-bold text-gray-800">
-                {view === 'create' ? 'Create New Meeting' : 'Edit Meeting'}
+                {view === 'create' ? 'Create New Publication' : 'Edit Publication'}
               </h2>
             </div>
             <Button variant="secondary" onClick={() => setView('list')} className="px-4 py-2 rounded-lg">Discard Changes</Button>
@@ -262,7 +266,7 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
               <div className="lg:col-span-2 space-y-6">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 text-indigo-900">Meeting Title</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 text-indigo-900">Title</label>
                   <input 
                     type="text" 
                     value={title} 
@@ -274,7 +278,7 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 text-indigo-900">Meeting Summary (HTML Supported)</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 text-indigo-900">Content Summary (HTML Supported)</label>
                   <textarea 
                     value={description} 
                     onChange={e => setDescription(e.target.value)} 
@@ -287,6 +291,27 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
               </div>
 
               <div className="space-y-6">
+                {/* Publish Date Section - Beautiful UI */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 text-indigo-900">Publish Date</label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <CalendarIcon size={18} className="text-indigo-500 group-focus-within:text-indigo-600" />
+                    </div>
+                    <input 
+                      type="date" 
+                      value={publishDate}
+                      onChange={(e) => setPublishDate(e.target.value)}
+                      required
+                      className="block w-full pl-11 pr-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none font-medium appearance-none"
+                    />
+                  </div>
+                    <div className="mt-2 flex items-center justify-between text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
+                      <span>Format: YYYY-MM-DD</span>
+                      <span className="text-indigo-500">Scheduled for Publishing</span>
+                    </div>
+                </div>
+
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2 text-indigo-900">Category</label>
                   <select
@@ -327,7 +352,7 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 text-indigo-900">PDF Transcript</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 text-indigo-900">PDF Transcript (Optional)</label>
                   <div 
                     onClick={() => transcriptInputRef.current?.click()}
                     className={`p-4 rounded-xl border-2 border-dashed transition-all cursor-pointer flex items-center space-x-3
@@ -370,8 +395,8 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
       
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
-          <h2 className="text-4xl font-extrabold text-gray-900 tracking-tight">Meetings</h2>
-          <p className="text-lg text-gray-500 mt-2 font-medium">Create and manage meetings.</p>
+          <h2 className="text-4xl font-extrabold text-gray-900 tracking-tight">Publications</h2>
+          <p className="text-lg text-gray-500 mt-2 font-medium">Create and manage your editorial archives.</p>
         </div>
         <div className="flex md:flex-row flex-col gap-2">
           <div className="relative group w-full sm:w-80">
@@ -384,7 +409,7 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
                 setCurrentPage(1);
               }}
               onKeyPress={handleSearchKeyPress}
-              placeholder="Search editorial archives..."
+              placeholder="Search archives..."
               className="w-full bg-white pl-12 pr-4 py-4 rounded-2xl border-2 border-gray-100 focus:border-[#d84602] transition-all outline-none font-semibold text-gray-800 shadow-sm"
             />
             {searchTerm && (
@@ -396,34 +421,31 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
               </button>
             )}
           </div>
-        <Button onClick={() => { resetForm(); setView('create'); }} className="px-6 py-3 rounded-xl shadow-lg hover:translate-y-[-2px] transition-all w-full md:w-auto">
-          <Plus className="w-5 h-5 mr-2" /> New Publication
-        </Button>
+          <Button onClick={() => { resetForm(); setView('create'); }} className="px-6 py-3 rounded-xl shadow-lg hover:translate-y-[-2px] transition-all w-full md:w-auto">
+            <Plus className="w-5 h-5 mr-2" /> New Publication
+          </Button>
         </div>
       </div>
 
-      {/* Category Tabs - Hide categories if we are actively searching to focus on search results */}
       <div className="border-b border-gray-200 overflow-x-auto no-scrollbar flex items-center space-x-2 py-2">
-        {/* <button
+        <button
           onClick={() => {
             setActiveCategoryGuid('');
-            setSearchTerm(''); // Clear search when picking global view
             setCurrentPage(1);
           }}
           className={`px-6 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all duration-200 ${
-            activeCategoryGuid === '' && !searchTerm
+            activeCategoryGuid === '' 
               ? 'bg-[#d84602] text-white shadow-md' 
               : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
           }`}
         >
-          All Meetings
-        </button> */}
+          All Topics
+        </button>
         {categories.map((c) => (
           <button
             key={c.guid}
             onClick={() => {
               setActiveCategoryGuid(c.id);
-              setSearchTerm(''); // Clear search when picking a category
               setCurrentPage(1);
             }}
             className={`px-6 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all duration-200 ${
@@ -459,7 +481,7 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
             
             <div className="p-6 flex flex-col flex-1">
               <div className="flex items-center text-[11px] text-gray-400 font-semibold mb-3">
-                <Calendar size={12} className="mr-1.5" />
+                <CalendarIcon size={12} className="mr-1.5" />
                 {b.formatted_date}
               </div>
               <h3 className="text-xl font-bold text-gray-900 line-clamp-2 mb-3 leading-snug group-hover:text-indigo-600 transition-colors">
@@ -495,7 +517,6 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
         ))}
       </div>
 
-      {/* Pagination Controls */}
       {pagination && pagination.total_pages > 1 && (
         <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50/30 px-6 py-4 rounded-b-2xl">
           <div className="flex flex-1 justify-between sm:hidden">
