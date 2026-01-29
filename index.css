@@ -1,1 +1,10 @@
 @import "tailwindcss";
+ol {
+    list-style: devanagari;
+    padding-left: 20px;
+}
+
+ul {
+    list-style: disc;
+    padding-left: 20px;
+}
