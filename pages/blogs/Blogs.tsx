@@ -58,10 +58,10 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
       
       // If search query is present, use the search endpoint as requested
       if (query && query.trim() !== '') {
-        url = `${ENDPOINTS.BLOG.SEARCH}?search=${encodeURIComponent(query)}&page=${page}&status=1`;
+        url = `${ENDPOINTS.BLOG.SEARCH}?search=${encodeURIComponent(query)}&page=${page}&page_size=9`;
       } else {
         // Standard list fetch
-        url = `${ENDPOINTS.BLOG.LIST}?page=${page}&type=1`;
+        url = `${ENDPOINTS.BLOG.LIST}?page=${page}&page_size=9`;
         if (catGuid) {
           url += `&category_id=${catGuid}`;
         }
