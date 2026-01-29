@@ -1,12 +1,12 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { 
-  Edit2, Plus, Calendar, Trash2, 
+  Edit2, Plus, Trash2, 
   FileText, Image as ImageIcon, 
   X, Upload, ChevronLeft,
-  ChevronRight, Filter,
+  ChevronRight,
   Search,
-  CalendarIcon
+  Calendar as CalendarIcon
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import Swal from 'sweetalert2';
@@ -14,7 +14,7 @@ import { Blog, Category, Pagination } from '@/types';
 import { ENDPOINTS } from '@/constants';
 import { apiRequest } from '@/services/api';
 import { Button } from '@/components/ui/Button';
-
+import { RichTextEditor } from './RichTextEditor';
 interface BlogsProps {
   token: string;
 }
@@ -58,10 +58,10 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
       
       // If search query is present, use the search endpoint as requested
       if (query && query.trim() !== '') {
-        url = `${ENDPOINTS.BLOG.SEARCH}?search=${encodeURIComponent(query)}&page=${page}`;
+        url = `${ENDPOINTS.BLOG.SEARCH}?search=${encodeURIComponent(query)}&page=${page}&status=1`;
       } else {
         // Standard list fetch
-        url = `${ENDPOINTS.BLOG.LIST}?page=${page}`;
+        url = `${ENDPOINTS.BLOG.LIST}?page=${page}&type=1`;
         if (catGuid) {
           url += `&category_id=${catGuid}`;
         }
@@ -93,17 +93,11 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
       if (res.status && res.data && Array.isArray(res.data.categories)) {
         const active = res.data.categories.filter((c: any) => c.status === 1);
         setCategories(active);
-        
-        // Load first category by default if none selected
-        if (active.length > 0 && !activeCategoryGuid) {
-          // In actual code, usually we'd select first or stay empty
-          // setActiveCategoryGuid(active[0].id);
-        }
       }
     } catch (error) {
       console.error("Failed to load categories");
     }
-  }, [token, activeCategoryGuid]);
+  }, [token]);
 
   useEffect(() => {
     fetchCategories();
@@ -246,6 +240,7 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
   if (view !== 'list') {
     return (
       <div className="max-w-5xl mx-auto py-8 px-4 animate-in fade-in duration-300">
+        <Toaster position="top-right" />
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
           <div className="px-8 py-5 bg-gray-50/50 border-b border-gray-100 flex justify-between items-center">
             <div className="flex items-center space-x-3">
@@ -278,20 +273,17 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 text-indigo-900">Content Summary (HTML Supported)</label>
-                  <textarea 
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 text-indigo-900">Content Summary (Rich Text Editor)</label>
+                  {/* Custom Rich Text Editor replacing textarea */}
+                  <RichTextEditor
                     value={description} 
-                    onChange={e => setDescription(e.target.value)} 
-                    required 
-                    rows={12} 
-                    placeholder="<p>Start writing your story...</p>"
-                    className="block w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none font-mono text-sm leading-relaxed" 
+                    onChange={setDescription} 
+                    placeholder="Start writing your story..."
                   />
                 </div>
               </div>
 
               <div className="space-y-6">
-                {/* Publish Date Section - Beautiful UI */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2 text-indigo-900">Publish Date</label>
                   <div className="relative group">
@@ -306,10 +298,6 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
                       className="block w-full pl-11 pr-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none font-medium appearance-none"
                     />
                   </div>
-                    {/* <div className="mt-2 flex items-center justify-between text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
-                      <span>Format: DD-MM-YYYY</span>
-                      <span className="text-indigo-500">Scheduled for Publishing</span>
-                    </div> */}
                 </div>
 
                 <div>
@@ -449,8 +437,8 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
               setCurrentPage(1);
             }}
             className={`px-6 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all duration-200 ${
-              activeCategoryGuid === c.id 
-                ? 'bg-[#d84602] text-white shadow-md' 
+              activeCategoryGuid === c.id
+                ? 'bg-[#d84602] text-white shadow-md'
                 : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
             }`}
           >
@@ -487,9 +475,10 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
               <h3 className="text-xl font-bold text-gray-900 line-clamp-2 mb-3 leading-snug group-hover:text-indigo-600 transition-colors">
                 {b.title}
               </h3>
-              <p className="text-sm text-gray-500 line-clamp-3 mb-6 flex-1 leading-relaxed">
-                {b.description?.replace(/<[^>]*>?/gm, '') || "No description available."}
-              </p>
+              <div 
+                className="text-sm text-gray-500 line-clamp-3 mb-6 flex-1 leading-relaxed prose-editor"
+                dangerouslySetInnerHTML={{ __html: b.description || "No description available." }}
+              />
               
               <div className="pt-4 border-t border-gray-50 flex items-center justify-between">
                 <div className="flex -space-x-2">
