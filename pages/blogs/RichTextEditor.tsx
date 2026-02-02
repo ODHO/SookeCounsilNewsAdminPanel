@@ -1,6 +1,17 @@
 
-import React, { useRef, useEffect, useState } from 'react';
-import { Bold, Italic, List, ListOrdered, Underline } from 'lucide-react';
+import React from 'react';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Underline from '@tiptap/extension-underline';
+import Link from '@tiptap/extension-link';
+import Placeholder from '@tiptap/extension-placeholder';
+import { 
+  Bold, Italic, Underline as UnderlineIcon, 
+  List, ListOrdered, Quote, 
+  Heading1, Heading2, Heading3, 
+  Undo, Redo, Link as LinkIcon,
+  Eraser
+} from 'lucide-react';
 
 interface RichTextEditorProps {
   value: string;
@@ -8,87 +19,117 @@ interface RichTextEditorProps {
   placeholder?: string;
 }
 
-export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeholder }) => {
-  const editorRef = useRef<HTMLDivElement>(null);
-  const [isFocused, setIsFocused] = useState(false);
+const MenuBar = ({ editor }: { editor: any }) => {
+  if (!editor) {
+    return null;
+  }
 
-  // Sync state to editor only if content is different (to avoid cursor jumps)
-  useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML !== value) {
-      editorRef.current.innerHTML = value || '';
-    }
-  }, [value]);
-
-  const handleInput = () => {
-    if (editorRef.current) {
-      onChange(editorRef.current.innerHTML);
+  const addLink = () => {
+    const url = window.prompt('Enter the URL');
+    if (url) {
+      editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
     }
   };
 
-  const execCommand = (command: string) => {
-    document.execCommand(command, false, '');
-    if (editorRef.current) {
-      editorRef.current.focus();
-    }
-  };
+  const btnClass = (active: boolean) => 
+    `p-2 rounded-lg transition-all ${active ? 'bg-orange-100 text-[#d84602]' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-900'}`;
 
   return (
-    <div className={`rounded-xl border transition-all overflow-hidden ${isFocused ? 'ring-2 ring-indigo-500 border-indigo-500' : 'border-gray-300'}`}>
-      {/* Toolbar */}
-      <div className="flex items-center space-x-1 p-2 bg-gray-50 border-b border-gray-200">
-        <button
-          type="button"
-          onMouseDown={(e) => { e.preventDefault(); execCommand('bold'); }}
-          className="p-1.5 hover:bg-gray-200 rounded text-gray-600 transition-colors"
-          title="Bold"
-        >
+    <div className="flex flex-wrap items-center gap-1 p-2 bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
+      <div className="flex items-center gap-1 pr-2 border-r border-slate-200">
+        <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={btnClass(editor.isActive('bold'))} title="Bold">
           <Bold size={18} />
         </button>
-        <button
-          type="button"
-          onMouseDown={(e) => { e.preventDefault(); execCommand('italic'); }}
-          className="p-1.5 hover:bg-gray-200 rounded text-gray-600 transition-colors"
-          title="Italic"
-        >
+        <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={btnClass(editor.isActive('italic'))} title="Italic">
           <Italic size={18} />
         </button>
-        <button
-          type="button"
-          onMouseDown={(e) => { e.preventDefault(); execCommand('underline'); }}
-          className="p-1.5 hover:bg-gray-200 rounded text-gray-600 transition-colors"
-          title="Underline"
-        >
-          <Underline size={18} />
-        </button>
-        <div className="w-px h-6 bg-gray-300 mx-1" />
-        <button
-          type="button"
-          onMouseDown={(e) => { e.preventDefault(); execCommand('insertUnorderedList'); }}
-          className="p-1.5 hover:bg-gray-200 rounded text-gray-600 transition-colors"
-          title="Bullet List"
-        >
-          <List size={18} />
-        </button>
-        <button
-          type="button"
-          onMouseDown={(e) => { e.preventDefault(); execCommand('insertOrderedList'); }}
-          className="p-1.5 hover:bg-gray-200 rounded text-gray-600 transition-colors"
-          title="Numbered List"
-        >
-          <ListOrdered size={18} />
+        <button type="button" onClick={() => editor.chain().focus().toggleUnderline().run()} className={btnClass(editor.isActive('underline'))} title="Underline">
+          <UnderlineIcon size={18} />
         </button>
       </div>
 
-      {/* Editable Area */}
-      <div
-        ref={editorRef}
-        contentEditable
-        onInput={handleInput}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
-        className="prose-editor min-h-[300px] p-4 bg-white text-gray-900 outline-none overflow-y-auto leading-relaxed"
-        data-placeholder={placeholder}
-      />
+      <div className="flex items-center gap-1 px-2 border-r border-slate-200">
+        <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} className={btnClass(editor.isActive('heading', { level: 1 }))} title="Heading 1">
+          <Heading1 size={18} />
+        </button>
+        <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={btnClass(editor.isActive('heading', { level: 2 }))} title="Heading 2">
+          <Heading2 size={18} />
+        </button>
+        <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} className={btnClass(editor.isActive('heading', { level: 3 }))} title="Heading 3">
+          <Heading3 size={18} />
+        </button>
+      </div>
+
+      <div className="flex items-center gap-1 px-2 border-r border-slate-200">
+        <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={btnClass(editor.isActive('bulletList'))} title="Bullet List">
+          <List size={18} />
+        </button>
+        <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={btnClass(editor.isActive('orderedList'))} title="Numbered List">
+          <ListOrdered size={18} />
+        </button>
+        <button type="button" onClick={() => editor.chain().focus().toggleBlockquote().run()} className={btnClass(editor.isActive('blockquote'))} title="Blockquote">
+          <Quote size={18} />
+        </button>
+      </div>
+
+      <div className="flex items-center gap-1 px-2 border-r border-slate-200">
+        <button type="button" onClick={addLink} className={btnClass(editor.isActive('link'))} title="Add Link">
+          <LinkIcon size={18} />
+        </button>
+        <button type="button" onClick={() => editor.chain().focus().unsetAllMarks().run()} className={btnClass(false)} title="Clear Formatting">
+          <Eraser size={18} />
+        </button>
+      </div>
+
+      <div className="flex items-center gap-1 pl-2 ml-auto">
+        <button type="button" onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} className="p-2 disabled:opacity-30 text-slate-500 hover:text-slate-900 transition-colors" title="Undo">
+          <Undo size={18} />
+        </button>
+        <button type="button" onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} className="p-2 disabled:opacity-30 text-slate-500 hover:text-slate-900 transition-colors" title="Redo">
+          <Redo size={18} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeholder }) => {
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Underline,
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: {
+          class: 'text-[#d84602] underline font-bold cursor-pointer',
+        },
+      }),
+      Placeholder.configure({
+        placeholder: placeholder || 'Start typing or paste from Word...',
+      }),
+    ],
+    content: value,
+    onUpdate: ({ editor }) => {
+      onChange(editor.getHTML());
+    },
+    editorProps: {
+      attributes: {
+        class: 'prose prose-slate max-w-none focus:outline-none',
+      },
+    },
+  });
+
+  // Keep editor content in sync with external value changes (like when loading data)
+  React.useEffect(() => {
+    if (editor && value !== editor.getHTML()) {
+      editor.commands.setContent(value);
+    }
+  }, [value, editor]);
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden focus-within:ring-4 focus-within:ring-orange-50 focus-within:border-[#d84602] transition-all shadow-sm">
+      <MenuBar editor={editor} />
+      <EditorContent editor={editor} className="bg-white text-slate-800" />
     </div>
   );
 };

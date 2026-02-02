@@ -68,6 +68,8 @@ export interface Product {
 }
 
 export interface Blog {
+  user: any;
+  category: any;
   id: number;
   title: string;
   description: string;

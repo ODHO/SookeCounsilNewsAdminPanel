@@ -163,7 +163,7 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
         setEditingId(b.id);
         setTitle(b.title);
         setDescription(b.description);
-        setCategoryGuid(b.category_guid || '');
+        setCategoryGuid(String(b.category_guid ?? ''));
         setPublishDate(b.publish_date || new Date().toISOString().split('T')[0]);
         setImagePreview(b.cover && b.cover.length > 0 ? b.cover[0].original_url : null);
         setView('edit');
@@ -275,11 +275,11 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2 text-indigo-900">Content Summary (Rich Text Editor)</label>
                   {/* Custom Rich Text Editor replacing textarea */}
-                  <RichTextEditor
-                    value={description} 
+                 <RichTextEditor
+                  value={description} 
                     onChange={setDescription} 
-                    placeholder="Start writing your story..."
-                  />
+                  placeholder="Start writing your blog post or paste content from Word..."
+                />
                 </div>
               </div>
 
@@ -433,11 +433,11 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
           <button
             key={c.guid}
             onClick={() => {
-              setActiveCategoryGuid(c.id);
+              setActiveCategoryGuid(c.guid);
               setCurrentPage(1);
             }}
             className={`px-6 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all duration-200 ${
-              activeCategoryGuid === c.id
+              activeCategoryGuid === c.guid
                 ? 'bg-[#d84602] text-white shadow-md'
                 : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
             }`}
