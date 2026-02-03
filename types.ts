@@ -42,7 +42,7 @@ export interface Category {
   title: any;
   cover: any;
   media: any;
-  id: number;
+  id: string;
   guid: string;
   name: string;
   image_url?: Media[];
