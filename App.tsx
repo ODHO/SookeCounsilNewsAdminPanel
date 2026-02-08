@@ -15,6 +15,8 @@ import { ChangePassword } from './pages/changepassword/ChangePassword';
 // import { ServiceBookings } from './pages/servicebookings/ServiceBookings';
 import { About } from './pages/about/About';
 import { Transcriptions } from './pages/Transcriptions/Transcriptions';
+import { PrivacyPolicy } from './pages/websitecontent/PrivacyPolicy';
+import { TermsAndCondition } from './pages/websitecontent/TermsAndCondition';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -58,6 +60,8 @@ const App: React.FC = () => {
           <Route path="/news" element={<Blogs token={user.token} />} />
           <Route path="/transcriptions" element={<Transcriptions token={user.token} />} />
           <Route path="/about-content" element={<About token={user.token} />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy token={user.token} />} />
+          <Route path="/terms-and-conditions" element={<TermsAndCondition token={user.token} />} />
           {/* <Route path="/orders" element={<Orders token={user.token} />} /> */}
           {/* <Route path="/service-bookings" element={<ServiceBookings token={user.token} />} /> */}
           <Route path="/inquiries" element={<Enquiries token={user.token} />} />

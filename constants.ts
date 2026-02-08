@@ -37,6 +37,14 @@ export const ENDPOINTS = {
     LIST: "/about",
     CREATE: "/about/store",
   },
+  PRIVACYPOLICY: {
+    LIST: "/privacy",
+    CREATE: "/privacy/store",
+  },
+  TERMSANDCONDITIONS: {
+    LIST: "/terms",
+    CREATE: "/terms/store",
+  },
   ORDERS: {
     LIST: "/order/admin",
     GET_BY_ID: (orderId: string) => `/order/getById/${orderId}`,

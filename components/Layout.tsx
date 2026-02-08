@@ -10,6 +10,8 @@ import {
   Contact2Icon,
   LockIcon,
   HandPlatter,
+  HandGrab,
+  Server,
 } from 'lucide-react';
 import { User } from '../types';
 interface LayoutProps {
@@ -31,6 +33,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
     // { name: 'Testimonials', path: '/testimonials', icon: MessageSquareQuote },
     // { name: 'Orders', path: '/orders', icon: ListOrdered },
     { name: 'About Us', path: '/about-content', icon: HandPlatter },
+    { name: 'Privacy Policy', path: '/privacy-policy', icon: HandGrab },
+    { name: 'Terms and Conditions', path: '/terms-and-conditions', icon: Server },
     // { name: 'Service Bookings', path: '/service-bookings', icon: Logs },
     { name: 'Inquiries', path: '/inquiries', icon: Contact2Icon },
     { name: 'ChangePassword', path: '/changepassword', icon: LockIcon },
