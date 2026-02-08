@@ -9,6 +9,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import { apiRequest } from '@/services/api';
 import { ENDPOINTS } from '@/constants';
 import { Button } from '@/components/ui/Button';
+import { RichTextEditor } from '../blogs/RichTextEditor';
 
 interface PrivacyPolicyProps {
   token: string;
@@ -212,16 +213,14 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ token }) => {
                 </div>
               </div>
 
-              <div className="col-span-1 lg:col-span-2">
-                <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wider">Description / History</label>
-                <textarea 
-                  value={longDescription} 
-                  onChange={e => setLongDescription(e.target.value)} 
-                  required 
-                  rows={10} 
-                  className="block w-full rounded-2xl border border-gray-200 px-5 py-4 text-gray-900 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none font-mono text-sm leading-relaxed" 
-                />
-              </div>
+               <div className="col-span-1 lg:col-span-2">
+                            <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wider">Description / History</label>
+                             <RichTextEditor
+                                              value={longDescription} 
+                                                onChange={setLongDescription} 
+                                              placeholder="Start writing your blog post or paste content from Word..."
+                                            />
+                          </div>
             </div>
 
             <div className="pt-8 border-t border-gray-100 flex justify-end">
@@ -303,9 +302,10 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ token }) => {
                  {aboutData.long_description && (
                    <>
                      <h4 className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-4">Extended History</h4>
-                     <div className="prose prose-indigo max-w-none text-gray-500 whitespace-pre-wrap leading-relaxed">
-                        {aboutData.long_description}
-                     </div>
+                    <div 
+                className="text-sm text-gray-500 line-clamp-3 mb-6 flex-1 leading-relaxed prose-editor"
+                dangerouslySetInnerHTML={{ __html: aboutData.long_description || "No description available." }}
+              />
                    </>
                  )}
               </div>
