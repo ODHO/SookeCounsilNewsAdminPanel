@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { 
   Edit2, Plus, Trash2, 
@@ -15,6 +14,7 @@ import { ENDPOINTS } from '@/constants';
 import { apiRequest } from '@/services/api';
 import { Button } from '@/components/ui/Button';
 import { RichTextEditor } from './RichTextEditor';
+
 interface BlogsProps {
   token: string;
 }
@@ -37,9 +37,12 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
   const [description, setDescription] = useState('');
   const [categoryGuid, setCategoryGuid] = useState('');
   const [publishDate, setPublishDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [image, setImage] = useState<File | null>(null);
+  
+  // Multiple Images State
+  const [images, setImages] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  
   const [transcript, setTranscript] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
   
   const imageInputRef = useRef<HTMLInputElement>(null);
   const transcriptInputRef = useRef<HTMLInputElement>(null);
@@ -127,20 +130,38 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
     setDescription('');
     setCategoryGuid('');
     setPublishDate(new Date().toISOString().split('T')[0]);
-    setImage(null);
+    setImages([]);
+    setImagePreviews([]);
     setTranscript(null);
-    setImagePreview(null);
     setEditingId(null);
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImage(file);
-      const reader = new FileReader();
-      reader.onloadend = () => setImagePreview(reader.result as string);
-      reader.readAsDataURL(file);
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      // If we are in edit mode and this is the first time we are adding new images,
+      // clear the previous images that were loaded from the server.
+      if (view === 'edit' && images.length === 0) {
+        setImagePreviews([]);
+      }
+
+      setImages(prev => [...prev, ...files]);
+      
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImagePreviews(prev => [...prev, reader.result as string]);
+        };
+        reader.readAsDataURL(file);
+      });
     }
+    // Reset input value to allow selecting same file again if needed
+    if (imageInputRef.current) imageInputRef.current.value = '';
+  };
+
+  const removeImage = (index: number) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+    setImagePreviews(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleTranscriptChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -165,7 +186,14 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
         setDescription(b.description);
         setCategoryGuid(String(b.category_guid ?? ''));
         setPublishDate(b.publish_date || new Date().toISOString().split('T')[0]);
-        setImagePreview(b.cover && b.cover.length > 0 ? b.cover[0].original_url : null);
+        
+        // Populate existing images as previews
+        if (b.cover && b.cover.length > 0) {
+          setImagePreviews(b.cover.map(c => c.original_url));
+        } else {
+          setImagePreviews([]);
+        }
+        setImages([]); // Clear new images when editing
         setView('edit');
       }
     } catch (err) {
@@ -216,7 +244,11 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
     formData.append('category_guid', categoryGuid);
     formData.append('publish_date', publishDate);
     
-    if (image) formData.append('image', image);
+    // Append multiple images
+    images.forEach((img, index) => {
+      formData.append(`image[${index}]`, img);
+    });
+    
     if (transcript) formData.append('transcript', transcript);
 
     try {
@@ -274,7 +306,6 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2 text-indigo-900">Content Summary (Rich Text Editor)</label>
-                  {/* Custom Rich Text Editor replacing textarea */}
                  <RichTextEditor
                   value={description} 
                     onChange={setDescription} 
@@ -316,27 +347,29 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 text-indigo-900">Cover Image</label>
-                  <div 
-                    onClick={() => imageInputRef.current?.click()}
-                    className={`relative cursor-pointer border-2 border-dashed rounded-2xl aspect-video flex flex-col items-center justify-center overflow-hidden transition-all
-                      ${imagePreview ? 'border-indigo-400' : 'border-gray-300 hover:border-indigo-300 hover:bg-gray-50'}`}
-                  >
-                    {imagePreview ? (
-                      <>
-                        <img src={imagePreview} alt="Cover Preview" className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                          <Upload className="text-white h-8 w-8" />
-                        </div>
-                      </>
-                    ) : (
-                      <div className="text-center p-4">
-                        <ImageIcon className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-                        <span className="text-xs text-indigo-600 font-medium">Upload Image</span>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 text-indigo-900">Cover Images (Multiple)</label>
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                    {imagePreviews.map((preview, index) => (
+                      <div key={index} className="relative aspect-video rounded-xl overflow-hidden border border-gray-200 group">
+                        <img src={preview} alt={`Preview ${index}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        <button 
+                          type="button"
+                          onClick={() => removeImage(index)}
+                          className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X size={14} />
+                        </button>
                       </div>
-                    )}
-                    <input ref={imageInputRef} type="file" hidden accept="image/*" onChange={handleImageChange} />
+                    ))}
+                    <div 
+                      onClick={() => imageInputRef.current?.click()}
+                      className="cursor-pointer border-2 border-dashed border-gray-300 rounded-xl aspect-video flex flex-col items-center justify-center hover:border-indigo-300 hover:bg-gray-50 transition-all"
+                    >
+                      <Plus className="h-6 w-6 text-gray-400 mb-1" />
+                      <span className="text-[10px] text-indigo-600 font-medium">Add Image</span>
+                    </div>
                   </div>
+                  <input ref={imageInputRef} type="file" hidden accept="image/*" multiple onChange={handleImageChange} />
                 </div>
 
                 <div>
@@ -431,13 +464,13 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
         </button>
         {categories.map((c) => (
           <button
-            key={c.id}
+            key={c.guid}
             onClick={() => {
-              setActiveCategoryGuid(c.id);
+              setActiveCategoryGuid(c.guid);
               setCurrentPage(1);
             }}
             className={`px-6 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all duration-200 ${
-              activeCategoryGuid === c.id
+              activeCategoryGuid === c.guid
                 ? 'bg-[#d84602] text-white shadow-md'
                 : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
             }`}
@@ -459,7 +492,13 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
                 src={b.cover && b.cover.length > 0 ? b.cover[0].original_url : `https://picsum.photos/600/400?random=${b.id}`}
                 alt={b.title}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                referrerPolicy="no-referrer"
               />
+              {b.cover && b.cover.length > 1 && (
+                <div className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded-md backdrop-blur-sm">
+                  +{b.cover.length - 1} more
+                </div>
+              )}
               <div className="absolute top-4 left-4">
                 <span className="px-3 py-1 bg-white/90 backdrop-blur text-indigo-700 text-[10px] font-bold uppercase tracking-wider rounded-full shadow-sm">
                   {b.category?.name || 'Uncategorized'}
