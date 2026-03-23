@@ -466,11 +466,11 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
           <button
             key={c.guid}
             onClick={() => {
-              setActiveCategoryGuid(c.guid);
+              setActiveCategoryGuid(c.id);
               setCurrentPage(1);
             }}
             className={`px-6 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all duration-200 ${
-              activeCategoryGuid === c.guid
+              activeCategoryGuid === c.id
                 ? 'bg-[#d84602] text-white shadow-md'
                 : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
             }`}
