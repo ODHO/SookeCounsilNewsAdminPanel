@@ -38,9 +38,11 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
   const [categoryGuid, setCategoryGuid] = useState('');
   const [publishDate, setPublishDate] = useState<string>(new Date().toISOString().split('T')[0]);
   
-  // Multiple Images State
-  const [images, setImages] = useState<File[]>([]);
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  // Advanced Images State 
+  const [existingImages, setExistingImages] = useState<{id: number, url: string}[]>([]);
+  const [newImages, setNewImages] = useState<File[]>([]);
+  const [newImagePreviews, setNewImagePreviews] = useState<string[]>([]);
+  const [deletedFiles, setDeletedFiles] = useState<number[]>([]); // Tracking deleted existing image IDs
   
   const [transcript, setTranscript] = useState<File | null>(null);
   
@@ -130,8 +132,10 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
     setDescription('');
     setCategoryGuid('');
     setPublishDate(new Date().toISOString().split('T')[0]);
-    setImages([]);
-    setImagePreviews([]);
+    setExistingImages([]);
+    setNewImages([]);
+    setNewImagePreviews([]);
+    setDeletedFiles([]);
     setTranscript(null);
     setEditingId(null);
   };
@@ -139,18 +143,12 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length > 0) {
-      // If we are in edit mode and this is the first time we are adding new images,
-      // clear the previous images that were loaded from the server.
-      if (view === 'edit' && images.length === 0) {
-        setImagePreviews([]);
-      }
-
-      setImages(prev => [...prev, ...files]);
+      setNewImages(prev => [...prev, ...files]);
       
       files.forEach(file => {
         const reader = new FileReader();
         reader.onloadend = () => {
-          setImagePreviews(prev => [...prev, reader.result as string]);
+          setNewImagePreviews(prev => [...prev, reader.result as string]);
         };
         reader.readAsDataURL(file);
       });
@@ -159,9 +157,16 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
     if (imageInputRef.current) imageInputRef.current.value = '';
   };
 
-  const removeImage = (index: number) => {
-    setImages(prev => prev.filter((_, i) => i !== index));
-    setImagePreviews(prev => prev.filter((_, i) => i !== index));
+  // Remove image loaded from API and register it for deletion
+  const removeExistingImage = (id: number) => {
+    setExistingImages(prev => prev.filter(img => img.id !== id));
+    setDeletedFiles(prev => [...prev, id]); // Add to deleted_files payload
+  };
+
+  // Remove newly selected file
+  const removeNewImage = (index: number) => {
+    setNewImages(prev => prev.filter((_, i) => i !== index));
+    setNewImagePreviews(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleTranscriptChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -187,13 +192,18 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
         setCategoryGuid(String(b.category_guid ?? ''));
         setPublishDate(b.publish_date || new Date().toISOString().split('T')[0]);
         
-        // Populate existing images as previews
+        // Populate existing images from API
         if (b.cover && b.cover.length > 0) {
-          setImagePreviews(b.cover.map(c => c.original_url));
+          setExistingImages(b.cover.map(c => ({ id: c.id, url: c.original_url })));
         } else {
-          setImagePreviews([]);
+          setExistingImages([]);
         }
-        setImages([]); // Clear new images when editing
+        
+        // Reset New images and deletion array when editing a new record
+        setNewImages([]); 
+        setNewImagePreviews([]);
+        setDeletedFiles([]);
+        
         setView('edit');
       }
     } catch (err) {
@@ -244,10 +254,16 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
     formData.append('category_guid', categoryGuid);
     formData.append('publish_date', publishDate);
     
-    // Append multiple images
-    images.forEach((img, index) => {
+    // Append NEW images
+    newImages.forEach((img, index) => {
       formData.append(`image[${index}]`, img);
     });
+
+    // Append DELETED existing images IDs (e.g. deleted_files[0]=103)
+      // ✅ FIX: Append DELETED existing images IDs as a JSON string (e.g., "[103, 105]")
+    if (deletedFiles.length > 0) {
+      formData.append('deleted_files', JSON.stringify(deletedFiles));
+    }
     
     if (transcript) formData.append('transcript', transcript);
 
@@ -308,7 +324,7 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
                   <label className="block text-sm font-semibold text-gray-700 mb-2 text-indigo-900">Content Summary (Rich Text Editor)</label>
                  <RichTextEditor
                   value={description} 
-                    onChange={setDescription} 
+                  onChange={setDescription} 
                   placeholder="Start writing your blog post or paste content from Word..."
                 />
                 </div>
@@ -349,18 +365,36 @@ export const Blogs: React.FC<BlogsProps> = ({ token }) => {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2 text-indigo-900">Cover Images (Multiple)</label>
                   <div className="grid grid-cols-2 gap-2 mb-2">
-                    {imagePreviews.map((preview, index) => (
-                      <div key={index} className="relative aspect-video rounded-xl overflow-hidden border border-gray-200 group">
-                        <img src={preview} alt={`Preview ${index}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    
+                    {/* EXISTING API IMAGES PREVIEW */}
+                    {existingImages.map((img) => (
+                      <div key={`existing-${img.id}`} className="relative aspect-video rounded-xl overflow-hidden border border-gray-200 group">
+                        <img src={img.url} alt={`Existing cover ${img.id}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                         <button 
                           type="button"
-                          onClick={() => removeImage(index)}
-                          className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => removeExistingImage(img.id)}
+                          className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
                         >
                           <X size={14} />
                         </button>
                       </div>
                     ))}
+
+                    {/* NEWLY ADDED FILES PREVIEW */}
+                    {newImagePreviews.map((preview, index) => (
+                      <div key={`new-${index}`} className="relative aspect-video rounded-xl overflow-hidden border border-gray-200 group">
+                        <img src={preview} alt={`Preview ${index}`} className="w-full h-full object-cover" />
+                        <button 
+                          type="button"
+                          onClick={() => removeNewImage(index)}
+                          className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+
+                    {/* ADD IMAGE TRIGGER BUTTON */}
                     <div 
                       onClick={() => imageInputRef.current?.click()}
                       className="cursor-pointer border-2 border-dashed border-gray-300 rounded-xl aspect-video flex flex-col items-center justify-center hover:border-indigo-300 hover:bg-gray-50 transition-all"
