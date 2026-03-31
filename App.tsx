@@ -18,6 +18,7 @@ import { Transcriptions } from './pages/Transcriptions/Transcriptions';
 import { PrivacyPolicy } from './pages/websitecontent/PrivacyPolicy';
 import { TermsAndCondition } from './pages/websitecontent/TermsAndCondition';
 
+
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
