@@ -1,4 +1,4 @@
-export const API_BASE_URL = "https://backend.sookecouncil.ca/api";
+export const API_BASE_URL = "https://sookebackend.odhostestingweblinks.com/api";
 
 export const ENDPOINTS = {
   LOGIN: "/auth/login",
