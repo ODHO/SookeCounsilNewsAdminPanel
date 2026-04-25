@@ -1,4 +1,5 @@
-export const API_BASE_URL = "https://sookebackend.odhostestingweblinks.com/api";
+// export const API_BASE_URL = "https://sookebackend.odhostestingweblinks.com/api";
+export const API_BASE_URL = "https://sookebackend.odhossolutions.com/api";
 
 export const ENDPOINTS = {
   LOGIN: "/auth/login",
